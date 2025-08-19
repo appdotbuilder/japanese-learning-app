@@ -38,11 +38,22 @@ class DatabaseOptimizationService
             // Set charset for Japanese character support
             DB::statement('SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci');
             
+            // Ensure proper character set for current connection
+            DB::statement('SET character_set_client = utf8mb4');
+            DB::statement('SET character_set_connection = utf8mb4');
+            DB::statement('SET character_set_results = utf8mb4');
+            
             // Optimize for JSON operations
-            DB::statement('SET sql_mode = ""');
+            DB::statement('SET sql_mode = "NO_AUTO_VALUE_ON_ZERO"');
             
             // Enable better performance for JSON queries
             DB::statement('SET optimizer_search_depth = 62');
+            
+            // Optimize MySQL for better JSON and text performance
+            DB::statement('SET innodb_strict_mode = 1');
+            
+            // Ensure proper timezone handling
+            DB::statement('SET time_zone = "+00:00"');
             
             Log::info('MySQL optimizations applied successfully');
         } catch (\Exception $e) {

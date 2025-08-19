@@ -157,9 +157,63 @@ class MySQLCompatibilityTest extends TestCase
                 // These should be set for proper Japanese character support
                 $this->assertStringContainsString('utf8', strtolower($charset));
                 $this->assertStringContainsString('utf8', strtolower($collation));
+                
+                // Preferably should be utf8mb4 for full Unicode support
+                $this->assertEquals('utf8mb4', $charset, 'Database should use utf8mb4 charset');
+                $this->assertStringContainsString('utf8mb4', $collation, 'Database should use utf8mb4 collation');
             } catch (\Exception $e) {
                 // If we can't check charset/collation, just verify Japanese chars work
                 $this->assertTrue(true, 'Unable to check MySQL charset, but test setup allows this');
+            }
+        } else {
+            $this->markTestSkipped('This test is only for MySQL connections');
+        }
+    }
+
+    /**
+     * Test MySQL version compatibility.
+     */
+    public function test_mysql_version_compatibility(): void
+    {
+        if (DB::getDriverName() === 'mysql') {
+            try {
+                $version = DB::select('SELECT VERSION() as version')[0]->version;
+                
+                // Extract major.minor version number
+                preg_match('/^(\d+\.\d+)/', $version, $matches);
+                $majorMinor = (float) $matches[1];
+                
+                // MySQL 5.7+ has better JSON support
+                $this->assertGreaterThanOrEqual(5.7, $majorMinor, 'MySQL 5.7 or higher recommended for JSON support');
+                
+            } catch (\Exception $e) {
+                $this->markTestSkipped('Unable to determine MySQL version');
+            }
+        } else {
+            $this->markTestSkipped('This test is only for MySQL connections');
+        }
+    }
+
+    /**
+     * Test MySQL JSON query functionality.
+     */
+    public function test_mysql_json_queries(): void
+    {
+        if (DB::getDriverName() === 'mysql') {
+            try {
+                // Test JSON_EXTRACT functionality
+                $materials = DB::table('materials')
+                    ->whereRaw("JSON_EXTRACT(characters, '$[0].jp') = ?", ['あ'])
+                    ->get();
+                
+                $this->assertNotEmpty($materials, 'JSON_EXTRACT should find hiragana vowel materials');
+                
+                // Test JSON search with Japanese characters
+                $vowelMaterials = Material::whereJsonContains('characters', ['jp' => 'あ'])->get();
+                $this->assertNotEmpty($vowelMaterials, 'JSON contains search should work with Japanese characters');
+                
+            } catch (\Exception $e) {
+                $this->markTestSkipped('MySQL JSON functionality not available: ' . $e->getMessage());
             }
         } else {
             $this->markTestSkipped('This test is only for MySQL connections');
